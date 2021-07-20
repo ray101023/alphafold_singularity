@@ -24,7 +24,10 @@ from alphafold.common import protein
 from alphafold.common import residue_constants
 # Internal import (7716).
 
-TEST_DATA_DIR = 'alphafold/common/testdata/'
+TEST_DATA_DIR = os.path.join(
+  os.environ.get('ALPHAFOLD_BASE_DIR'),
+  'alphafold/common/testdata/'
+)
 
 
 class ProteinTest(parameterized.TestCase):
