@@ -13,15 +13,13 @@
 # limitations under the License.
 
 ARG CUDA=11.0
-FROM nvidia/cuda:${CUDA}-base
-# FROM directive resets ARGS, so we specify again (the value is retained if
-# previously set).
+FROM nvidia/cuda:${CUDA}-base AS build
 ARG CUDA
 
 # Use bash to support string substitution.
 SHELL ["/bin/bash", "-c"]
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       build-essential \
       cmake \
       cuda-command-line-tools-${CUDA/./-} \
@@ -33,8 +31,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Compile HHsuite from source.
-RUN git clone --branch v3.3.0 https://github.com/soedinglab/hh-suite.git /tmp/hh-suite \
-    && mkdir /tmp/hh-suite/build
+RUN git clone --branch v3.3.0 https://github.com/soedinglab/hh-suite.git /tmp/hh-suite
 WORKDIR /tmp/hh-suite/build
 RUN cmake -DCMAKE_INSTALL_PREFIX=/opt/hhsuite .. \
     && make -j 4 && make install \
@@ -42,8 +39,7 @@ RUN cmake -DCMAKE_INSTALL_PREFIX=/opt/hhsuite .. \
     && rm -rf /tmp/hh-suite
 
 # Install Miniconda package manger.
-RUN wget -q -P /tmp \
-  https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+RUN wget -q -P /tmp https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && bash /tmp/Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda \
     && rm /tmp/Miniconda3-latest-Linux-x86_64.sh
 
@@ -54,30 +50,56 @@ RUN conda update -qy conda \
       openmm=7.5.1 \
       cudatoolkit==${CUDA}.3 \
       pdbfixer \
-      pip
+      pip \
+    && /opt/conda/bin/conda clean -aqy
 
-COPY . /app/alphafold
+WORKDIR /app
+RUN git clone https://github.com/deepmind/alphafold.git
 RUN wget -q -P /app/alphafold/alphafold/common/ \
   https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 
 # Install pip packages.
-RUN pip3 install --upgrade pip \
-    && pip3 install -r /app/alphafold/requirements.txt \
-    && pip3 install --upgrade jax jaxlib==0.1.69+cuda${CUDA/./} -f \
+RUN pip3 install --upgrade --no-cache-dir pip \
+    && pip3 install --no-cache-dir -r /app/alphafold/requirements.txt \
+    && pip3 install --upgrade --no-cache-dir jax jaxlib==0.1.69+cuda${CUDA/./} -f \
       https://storage.googleapis.com/jax-releases/jax_releases.html
 
 # Apply OpenMM patch.
 WORKDIR /opt/conda/lib/python3.8/site-packages
 RUN patch -p0 < /app/alphafold/docker/openmm.patch
 
+FROM nvidia/cuda:${CUDA}-base
+ARG CUDA
+
+SHELL ["/bin/bash", "-c"]
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      cuda-command-line-tools-${CUDA/./-} \
+      hmmer \
+      kalign \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app /app
+COPY --from=build /opt/conda /opt/conda
+COPY --from=build /opt/hhsuite /opt/hhsuite
+
+# hhsuite executable path hardcoded as /usr/bin in run_alphafold.py
+RUN ln -s /opt/hhsuite/bin/* /usr/bin
+
 # We need to run `ldconfig` first to ensure GPUs are visible, due to some quirk
 # with Debian. See https://github.com/NVIDIA/nvidia-docker/issues/1399 for
 # details.
 # ENTRYPOINT does not support easily running multiple commands, so instead we
 # write a shell script to wrap them up.
+
 WORKDIR /app/alphafold
 RUN echo $'#!/bin/bash\n\
 ldconfig\n\
 python /app/alphafold/run_alphafold.py "$@"' > /app/run_alphafold.sh \
   && chmod +x /app/run_alphafold.sh
+
+ENV PATH=/opt/conda/bin:$PATH \
+    PYTHONPATH=/opt/conda/lib/python3.9/site-packages \
+    LC_ALL=C.UTF-8
+
 ENTRYPOINT ["/app/run_alphafold.sh"]
