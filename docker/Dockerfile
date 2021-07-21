@@ -12,9 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG CUDA=11.0
-FROM nvidia/cuda:${CUDA}-base AS build
-ARG CUDA
+ARG CUDA_FULL=11.2.2
+FROM nvidia/cuda:${CUDA_FULL}-base-ubuntu20.04 AS build
+# FROM directive resets ARGS, so we specify again (the value is retained if
+# previously set).
+ARG CUDA_FULL
+ARG CUDA=11.2
+# JAXLIB no longer built for all minor CUDA versions:
+# https://github.com/google/jax/blob/main/CHANGELOG.md#jaxlib-0166-may-11-2021
+ARG CUDA_JAXLIB=11.1
 
 # Use bash to support string substitution.
 SHELL ["/bin/bash", "-c"]
@@ -48,35 +54,46 @@ ENV PATH="/opt/conda/bin:$PATH"
 RUN conda update -qy conda \
     && conda install -y -c conda-forge \
       openmm=7.5.1 \
-      cudatoolkit==${CUDA}.3 \
+      cudatoolkit==${CUDA_FULL} \
       pdbfixer \
       pip \
     && /opt/conda/bin/conda clean -aqy
 
-WORKDIR /app
-RUN git clone https://github.com/deepmind/alphafold.git
+COPY . /app/alphafold
 RUN wget -q -P /app/alphafold/alphafold/common/ \
   https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 
 # Install pip packages.
 RUN pip3 install --upgrade --no-cache-dir pip \
     && pip3 install --no-cache-dir -r /app/alphafold/requirements.txt \
-    && pip3 install --upgrade --no-cache-dir jax jaxlib==0.1.69+cuda${CUDA/./} -f \
+    && pip3 install --upgrade --no-cache-dir jax jaxlib==0.1.69+cuda${CUDA_JAXLIB/./} -f \
       https://storage.googleapis.com/jax-releases/jax_releases.html
 
 # Apply OpenMM patch.
 WORKDIR /opt/conda/lib/python3.8/site-packages
 RUN patch -p0 < /app/alphafold/docker/openmm.patch
 
-FROM nvidia/cuda:${CUDA}-base
-ARG CUDA
+FROM nvidia/cuda:${CUDA_FULL}-base-ubuntu20.04
+ARG OS=ubuntu2004
+ARG CUDA=11.2
 
 SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      software-properties-common \
       cuda-command-line-tools-${CUDA/./-} \
       hmmer \
       kalign \
+      wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install cuDNN and cuSOLVER
+RUN wget -q https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/cuda-${OS}.pin \
+    -O /etc/apt/preferences.d/cuda-repository-pin-600 \
+    && apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/7fa2af80.pub \
+    && add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/ /" \
+    && apt-get update \
+    && apt-get install libcudnn8 libcusolver-${CUDA/./-} \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app /app
@@ -100,6 +117,7 @@ python /app/alphafold/run_alphafold.py "$@"' > /app/run_alphafold.sh \
 
 ENV PATH=/opt/conda/bin:$PATH \
     PYTHONPATH=/opt/conda/lib/python3.9/site-packages \
-    LC_ALL=C.UTF-8
+    LC_ALL=C.UTF-8 \  
+    ALPHAFOLD_BASE_DIR=/app/alphafold
 
 ENTRYPOINT ["/app/run_alphafold.sh"]
