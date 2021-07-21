@@ -25,7 +25,7 @@ from alphafold.common import residue_constants
 # Internal import (7716).
 
 TEST_DATA_DIR = os.path.join(
-  os.environ.get('ALPHAFOLD_BASE_DIR'),
+  os.environ.get('ALPHAFOLD_BASE_DIR', default=''),
   'alphafold/common/testdata/'
 )
 
