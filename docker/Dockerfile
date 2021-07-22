@@ -54,6 +54,7 @@ ENV PATH="/opt/conda/bin:$PATH"
 RUN conda update -qy conda \
     && conda install -y -c conda-forge \
       openmm=7.5.1 \
+      python=3.8 \
       cudatoolkit==${CUDA_FULL} \
       pdbfixer \
       pip \
@@ -116,7 +117,6 @@ python /app/alphafold/run_alphafold.py "$@"' > /app/run_alphafold.sh \
   && chmod +x /app/run_alphafold.sh
 
 ENV PATH=/opt/conda/bin:$PATH \
-    PYTHONPATH=/opt/conda/lib/python3.9/site-packages \
     LC_ALL=C.UTF-8 \  
     ALPHAFOLD_BASE_DIR=/app/alphafold
 
