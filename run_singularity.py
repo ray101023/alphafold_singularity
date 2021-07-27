@@ -98,6 +98,7 @@ def main():
     env = {
         "TF_FORCE_UNIFIED_MEMORY": "1",
         "XLA_PYTHON_CLIENT_MEM_FRACTION": "4.0",
+        "MAX_CPUS": args.cpus,
     }
 
     # Generate the final command to execute
@@ -191,6 +192,9 @@ def parse_arguments():
     )
     parser.add_argument(
         "--output-dir", "-o", default="results/", help="Output directory for results."
+    )
+    parser.add_argument(
+        "--cpus", "-c", type=int, default=8, help="Number of CPUs to use."
     )
 
     return parser.parse_args()
