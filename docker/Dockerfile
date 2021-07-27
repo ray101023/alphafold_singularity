@@ -25,7 +25,9 @@ ARG CUDA_JAXLIB=11.1
 # Use bash to support string substitution.
 SHELL ["/bin/bash", "-c"]
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt upgrade -y \
+    && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
       build-essential \
       cmake \
       cuda-command-line-tools-${CUDA/./-} \
@@ -80,7 +82,9 @@ ARG CUDA=11.2
 
 SHELL ["/bin/bash", "-c"]
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt upgrade -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       software-properties-common \
       cuda-command-line-tools-${CUDA/./-} \
       hmmer \
@@ -117,7 +121,7 @@ python /app/alphafold/run_alphafold.py "$@"' > /app/run_alphafold.sh \
   && chmod +x /app/run_alphafold.sh
 
 ENV PATH=/opt/conda/bin:$PATH \
-    LC_ALL=C.UTF-8 \  
+    LC_ALL=C.UTF-8 \
     ALPHAFOLD_BASE_DIR=/app/alphafold
 
 ENTRYPOINT ["/app/run_alphafold.sh"]
