@@ -26,8 +26,8 @@ ARG CUDA_JAXLIB=11.1
 SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt upgrade -y \
-    && DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       build-essential \
       cmake \
       cuda-command-line-tools-${CUDA/./-} \
@@ -73,7 +73,7 @@ RUN pip3 install --upgrade --no-cache-dir pip \
       https://storage.googleapis.com/jax-releases/jax_releases.html
 
 # Apply OpenMM patch.
-WORKDIR /opt/conda/lib/python3.7/site-packages
+WORKDIR /opt/conda/lib/python3.8/site-packages
 RUN patch -p0 < /app/alphafold/docker/openmm.patch
 
 FROM nvidia/cuda:${CUDA_FULL}-base-ubuntu20.04
@@ -83,7 +83,7 @@ ARG CUDA=11.2
 SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt upgrade -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       software-properties-common \
       cuda-command-line-tools-${CUDA/./-} \
