@@ -73,7 +73,7 @@ RUN pip3 install --upgrade --no-cache-dir pip \
       https://storage.googleapis.com/jax-releases/jax_releases.html
 
 # Apply OpenMM patch.
-WORKDIR /opt/conda/lib/python3.8/site-packages
+WORKDIR /opt/conda/lib/python3.7/site-packages
 RUN patch -p0 < /app/alphafold/docker/openmm.patch
 
 FROM nvidia/cuda:${CUDA_FULL}-base-ubuntu20.04
