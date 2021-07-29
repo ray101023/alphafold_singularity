@@ -116,7 +116,8 @@ def main():
 
     print("Executing: " + " ".join(command))
 
-    subprocess.run(command)
+    p = subprocess.run(command)
+    p.check_returncode()
 
 
 def generate_mount(mount_name: str, path: str, read_only=True) -> Tuple[str, str]:
