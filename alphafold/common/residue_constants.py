@@ -16,6 +16,7 @@
 
 import collections
 import functools
+import os
 from typing import List, Mapping, Tuple
 
 import numpy as np
@@ -403,7 +404,7 @@ def load_stereo_chemical_props() -> Tuple[Mapping[str, List[Bond]],
     residue_bond_angles: dict that maps resname --> list of BondAngle tuples
   """
   stereo_chemical_props_path = os.path.join(
-    os.environ.get('ALPHAFOLD_BASE_DIR'),
+    os.environ.get('ALPHAFOLD_BASE_DIR', default=''),
     'alphafold/common/stereo_chemical_props.txt'
   )
   with open(stereo_chemical_props_path, 'rt') as f:
