@@ -25,13 +25,18 @@ def main():
     uniref90_database_path = os.path.join(args.data_dir, "uniref90", "uniref90.fasta")
 
     # Path to the MGnify database for use by JackHMMER.
-    mgnify_database_path = os.path.join(args.data_dir, "mgnify", "mgy_clusters.fa")
+    mgnify_database_path = os.path.join(
+        args.data_dir, "mgnify", "mgy_clusters_2018_12.fa"
+    )
 
     # Path to the BFD database for use by HHblits.
     bfd_database_path = os.path.join(
-        args.data_dir,
-        "bfd",
-        "bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt",
+        args.data_dir, "bfd", "bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt"
+    )
+
+    # Path to the Small BFD database for use by JackHMMER.
+    small_bfd_database_path = os.path.join(
+        args.data_dir, "small_bfd", "bfd-first_non_consensus_sequences.fasta"
     )
 
     # Path to the Uniclust30 database for use by HHblits.
@@ -60,18 +65,23 @@ def main():
     command_args.append(f"--fasta_paths={','.join(target_fasta_paths)}")
 
     # Mount database and output directories
-    arg_paths = [
+    database_paths = [
         ("uniref90_database_path", uniref90_database_path),
         ("mgnify_database_path", mgnify_database_path),
-        ("uniclust30_database_path", uniclust30_database_path),
-        ("bfd_database_path", bfd_database_path),
         ("pdb70_database_path", pdb70_database_path),
         ("data_dir", args.data_dir),
         ("template_mmcif_dir", template_mmcif_dir),
         ("obsolete_pdbs_path", obsolete_pdbs_path),
     ]
+    if args.preset == "reduced_dbs":
+        database_paths.append(('small_bfd_database_path', small_bfd_database_path))
+    else:
+        database_paths.extend([
+            ('uniclust30_database_path', uniclust30_database_path),
+            ('bfd_database_path', bfd_database_path),
+        ])
 
-    for name, path in arg_paths:
+    for name, path in database_paths:
         if path:
             mount, target_path = generate_mount(name, path)
             mounts.append(mount)
@@ -161,7 +171,7 @@ def parse_arguments():
     parser.add_argument(
         "--preset",
         "-p",
-        choices=["full_dbs", "casp14"],
+        choices=["reduced_dbs", "full_dbs", "casp14"],
         default="full_dbs",
         help="Choose preset model configuration - no ensembling with "
         "uniref90 + bfd + uniclust30 (full_dbs), or "
