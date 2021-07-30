@@ -1,4 +1,4 @@
-## Changes over [deepmind/alphafold](https://github.com/deepmind/alphafold)
+### Changes over [deepmind/alphafold](https://github.com/deepmind/alphafold)
 
 - Dockerfile:
   - CUDA:11.2.2-base-ubuntu20.04 as base image
@@ -7,6 +7,8 @@
   - Multi-stage build (resulting in a lighter image)
 - Added `run_singularity.py` script analogous to `run_docker.py`, for environments that normally don't have Docker access (e.g. HPC clusters)
 - Added `MAX_CPUS` env variable to provide `ncpus` parameter for hhblits, hhsearch and jackhmmer.
+
+---
 
 ![header](imgs/header.jpg)
 
