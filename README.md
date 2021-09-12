@@ -5,7 +5,7 @@
   - cuDNN 8 + cuSOLVER 11.2
   - Python 3.8
   - Multi-stage build (resulting in a lighter image)
-- Added `run_singularity.py` script analogous to `run_docker.py`, for environments that normally don't have Docker access (e.g. HPC clusters)
+- Added `run_singularity.py` script equivalent to `run_docker.py`, for environments that normally don't have Docker access (e.g. HPC clusters)
 - Added `MAX_CPUS` env variable to provide `ncpus` parameter for hhblits, hhsearch and jackhmmer.
 
 ---
