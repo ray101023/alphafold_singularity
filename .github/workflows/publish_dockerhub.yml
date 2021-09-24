@@ -4,6 +4,9 @@ on:
   push:
     branches: [ main ]
 
+env:
+  IMAGE: catgumag/alphafold
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -32,8 +35,8 @@ jobs:
           file: docker/Dockerfile
           push: true
           tags: |
-            ${{ github.repository }}:${{ env.DATE }}
-            ${{ github.repository }}:latest
+            ${{ env.IMAGE }}:${{ env.DATE }}
+            ${{ env.IMAGE }}:latest
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
