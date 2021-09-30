@@ -7,6 +7,7 @@
   - Multi-stage build (resulting in a lighter image)
 - Added `run_singularity.py` script equivalent to `run_docker.py`, for environments that normally don't have Docker access (e.g. HPC clusters)
 - Added `MAX_CPUS` env variable to provide `ncpus` parameter for hhblits, hhsearch and jackhmmer.
+- Automatic publishing of Docker image on [DockerHub](https://hub.docker.com/repository/docker/catgumag/alphafold)
 
 ---
 
