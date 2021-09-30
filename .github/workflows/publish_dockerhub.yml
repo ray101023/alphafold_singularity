@@ -3,6 +3,9 @@ name: Alphafold to DockerHub
 on:
   push:
     branches: [ main ]
+  release:
+    types: [published]
+  workflow_dispatch:
 
 env:
   IMAGE: catgumag/alphafold
@@ -13,7 +16,12 @@ jobs:
     
     steps:
       - name: Get current date (for tag)
-        run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
+        id: get_date
+        run: echo ::set-output name=DATE::$(date +'%Y%m%d')
+
+      - name: Get version from tag
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/v}
 
       - name: Check out repository
         uses: actions/checkout@v2
@@ -35,8 +43,12 @@ jobs:
           file: docker/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE }}:${{ env.DATE }}
+            ${{ env.IMAGE }}:${{ env.IMAGE_VERSION }}
             ${{ env.IMAGE }}:latest
+        env:
+          IMAGE_VERSION: ${{ github.ref == 'refs/heads/main' &&
+                             format('dev{0}', steps.get_date.outputs.DATE) ||
+                             steps.get_version.outputs.VERSION }}
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
