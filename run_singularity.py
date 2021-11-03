@@ -1,21 +1,13 @@
 #!/usr/bin/env python3
 import argparse
-import subprocess
-
 import os
+import subprocess
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Tuple
+from typing import List, Tuple
 
-
-CONTAINER_IMAGE = "docker://catgumag/alphafold:latest"
+CONTAINER_IMAGE = "docker://catgumag/alphafold:2.1.0"
 ROOT_MOUNT_DIRECTORY = "/mnt"
-AVAILABLE_MODELS = [
-    "model_1",
-    "model_2",
-    "model_3",
-    "model_4",
-    "model_5",
-]
 
 
 def main():
@@ -23,6 +15,9 @@ def main():
 
     # Path to the Uniref90 database for use by JackHMMER.
     uniref90_database_path = os.path.join(args.data_dir, "uniref90", "uniref90.fasta")
+
+    # Path to the Uniprot database for use by JackHMMER.
+    uniprot_database_path = os.path.join(args.data_dir, "uniprot", "uniprot.fasta")
 
     # Path to the MGnify database for use by JackHMMER.
     mgnify_database_path = os.path.join(
@@ -47,6 +42,11 @@ def main():
     # Path to the PDB70 database for use by HHsearch.
     pdb70_database_path = os.path.join(args.data_dir, "pdb70", "pdb70")
 
+    # Path to the PDB seqres database for use by hmmsearch.
+    pdb_seqres_database_path = os.path.join(
+        args.data_dir, "pdb_seqres", "pdb_seqres.txt"
+    )
+
     # Path to a directory with template mmCIF structures, each named <pdb_id>.cif')
     template_mmcif_dir = os.path.join(args.data_dir, "pdb_mmcif", "mmcif_files")
 
@@ -59,7 +59,7 @@ def main():
     # Mount each fasta path as a unique target directory
     target_fasta_paths = []
     for i, fasta_path in enumerate(args.fasta_paths):
-        mount, target_path = generate_mount(f"fasta_path_{i}", fasta_path)
+        mount, target_path = _generate_mount(f"fasta_path_{i}", fasta_path)
         mounts.append(mount)
         target_fasta_paths.append(target_path)
     command_args.append(f"--fasta_paths={','.join(target_fasta_paths)}")
@@ -68,26 +68,33 @@ def main():
     database_paths = [
         ("uniref90_database_path", uniref90_database_path),
         ("mgnify_database_path", mgnify_database_path),
-        ("pdb70_database_path", pdb70_database_path),
         ("data_dir", args.data_dir),
         ("template_mmcif_dir", template_mmcif_dir),
         ("obsolete_pdbs_path", obsolete_pdbs_path),
     ]
-    if args.preset == "reduced_dbs":
-        database_paths.append(('small_bfd_database_path', small_bfd_database_path))
+    if args.model_preset == "multimer":
+        database_paths.append(("uniprot_database_path", uniprot_database_path))
+        database_paths.append(("pdb_seqres_database_path", pdb_seqres_database_path))
     else:
-        database_paths.extend([
-            ('uniclust30_database_path', uniclust30_database_path),
-            ('bfd_database_path', bfd_database_path),
-        ])
+        database_paths.append(("pdb70_database_path", pdb70_database_path))
+
+    if args.db_preset == "reduced_dbs":
+        database_paths.append(("small_bfd_database_path", small_bfd_database_path))
+    else:
+        database_paths.extend(
+            [
+                ("uniclust30_database_path", uniclust30_database_path),
+                ("bfd_database_path", bfd_database_path),
+            ]
+        )
 
     for name, path in database_paths:
         if path:
-            mount, target_path = generate_mount(name, path)
+            mount, target_path = _generate_mount(name, path)
             mounts.append(mount)
             command_args.append(f"--{name}={target_path}")
 
-    output_mount, output_target_path = generate_mount(
+    output_mount, output_target_path = _generate_mount(
         "output", args.output_dir, read_only=False
     )
     mounts.append(output_mount)
@@ -96,16 +103,20 @@ def main():
     command_args.extend(
         [
             f"--output_dir={output_target_path}",
-            f'--model_names={",".join(args.models)}',
             f"--max_template_date={args.max_template_date}",
-            f"--preset={args.preset}",
+            f"--db_preset={args.db_preset}",
+            f"--model_preset={args.model_preset}",
             f"--benchmark={args.benchmark}",
+            f"--use_precomputed_msas={args.use_precomputed_msas}",
             "--logtostderr",
         ]
     )
 
     # Set environment variables for the container
     env = {
+        "NVIDIA_VISIBLE_DEVICES": args.gpu_devices,
+        # The following flags allow us to make predictions on proteins that
+        # would typically be too long to fit into GPU memory.
         "TF_FORCE_UNIFIED_MEMORY": "1",
         "XLA_PYTHON_CLIENT_MEM_FRACTION": "4.0",
         "MAX_CPUS": args.cpus,
@@ -115,7 +126,7 @@ def main():
     command = [
         "singularity",
         "exec",
-        "--nv",
+        "--nv" if args.use_gpu else "",
         "--bind",
         ",".join(mounts),
         *[f'--env="{k}={v}"' for k, v in env.items()],
@@ -130,7 +141,7 @@ def main():
     p.check_returncode()
 
 
-def generate_mount(mount_name: str, path: str, read_only=True) -> Tuple[str, str]:
+def _generate_mount(mount_name: str, path: str, read_only=True) -> Tuple[str, str]:
     """
     Generate a mount line for a singularity container.
     :param mount_name: The name of the mount point.
@@ -148,7 +159,7 @@ def generate_mount(mount_name: str, path: str, read_only=True) -> Tuple[str, str
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Singularity launch script for Alphafold"
+        description="Singularity launch script for Alphafold v2.1.0"
     )
 
     parser.add_argument(
@@ -161,6 +172,18 @@ def parse_arguments():
         "is used to name the output directories for each prediction.",
     )
     parser.add_argument(
+        "--is-prokaryote-list",
+        required=False,
+        nargs="+",
+        help="Optional for multimer system, "
+        "not used by the single chain system. "
+        "This list should contain a boolean for each fasta "
+        "specifying true where the target complex is from a "
+        "prokaryote, and false where it is not, or where the "
+        "origin is unknown. These values determine the pairing "
+        "method for the MSA.",
+    )
+    parser.add_argument(
         "--max-template-date",
         "-t",
         default=datetime.today().strftime("%Y-%m-%d"),
@@ -169,13 +192,19 @@ def parse_arguments():
         "Important if folding historical test sets.",
     )
     parser.add_argument(
-        "--preset",
-        "-p",
-        choices=["reduced_dbs", "full_dbs", "casp14"],
+        "--db-preset",
+        choices=["reduced_dbs", "full_dbs"],
         default="full_dbs",
         help="Choose preset model configuration - no ensembling with "
         "uniref90 + bfd + uniclust30 (full_dbs), or "
         "8 model ensemblings with uniref90 + bfd + uniclust30 (casp14).",
+    )
+    parser.add_argument(
+        "--model-preset",
+        choices=["monomer", "monomer_casp14", "monomer_ptm", "multimer"],
+        default="monomer",
+        help="Choose preset model configuration - the monomer model, the monomer model "
+        "with extra ensembling, monomer model with pTM head, or multimer model",
     )
     parser.add_argument(
         "--benchmark",
@@ -187,28 +216,41 @@ def parse_arguments():
         "of the time required for inferencing many proteins.",
     )
     parser.add_argument(
-        "--models",
-        "-m",
-        default=AVAILABLE_MODELS,
-        choices=AVAILABLE_MODELS,
-        action="store",
-        nargs="+",
-        help="Models to run.",
+        "--use-precomputed-msas",
+        default=False,
+        action="store_true",
+        help="Whether to read MSAs that have been written to disk. WARNING: This will "
+        "not check if the sequence, database or configuration have changed.",
     )
     parser.add_argument(
         "--data-dir",
         "-d",
         default="./databases/",
-        help="Databases directory (target of scripts/download_all_databases.sh).",
+        help="Path to directory with supporting data: AlphaFold parameters and genetic "
+        "and template databases. Set to the target of download_all_databases.sh.",
+    )
+    parser.add_argument(
+        "--docker-image", default=CONTAINER_IMAGE, help="Alphafold docker image."
     )
     parser.add_argument(
         "--output-dir", "-o", default="results/", help="Output directory for results."
     )
     parser.add_argument(
+        "--use-gpu",
+        default=True,
+        action="store_true",
+        help="Enable NVIDIA runtime to run with GPUs.",
+    )
+    parser.add_argument(
+        "--gpu-devices",
+        default="all",
+        help="Comma separated list of devices to pass to NVIDIA_VISIBLE_DEVICES.",
+    )
+    parser.add_argument(
         "--cpus", "-c", type=int, default=8, help="Number of CPUs to use."
     )
 
-    return parser.parse_args()
+    parser.parse_args()
 
 
 if __name__ == "__main__":
