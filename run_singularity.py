@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Tuple
 
-CONTAINER_IMAGE = "docker://catgumag/alphafold:2.1.0"
+CONTAINER_IMAGE = "docker://catgumag/alphafold:2.1.1"
 ROOT_MOUNT_DIRECTORY = "/mnt"
 
 
