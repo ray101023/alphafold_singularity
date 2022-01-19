@@ -249,7 +249,7 @@ def parse_arguments():
         "--cpus", "-c", type=int, default=8, help="Number of CPUs to use."
     )
 
-    parser.parse_args()
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
