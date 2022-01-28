@@ -72,7 +72,7 @@ RUN wget -q -P /app/alphafold/alphafold/common/ \
 # Install pip packages.
 RUN pip3 install --upgrade --no-cache-dir pip \
     && pip3 install --no-cache-dir -r /app/alphafold/requirements.txt \
-    && pip3 install --upgrade --no-cache-dir jax jaxlib==0.1.69+cuda${CUDA_JAXLIB/./} -f \
+    && pip3 install --upgrade --no-cache-dir jax==0.2.14 jaxlib==0.1.69+cuda${CUDA_JAXLIB/./} -f \
       https://storage.googleapis.com/jax-releases/jax_releases.html
 
 # Apply OpenMM patch.
@@ -110,6 +110,8 @@ COPY --from=build /opt/hhsuite /opt/hhsuite
 
 # hhsuite executable path hardcoded as /usr/bin in run_alphafold.py
 RUN ln -s /opt/hhsuite/bin/* /usr/bin
+# Add SETUID bit to the ldconfig binary so that non-root users can run it.
+RUN chmod u+s /sbin/ldconfig.real
 
 # We need to run `ldconfig` first to ensure GPUs are visible, due to some quirk
 # with Debian. See https://github.com/NVIDIA/nvidia-docker/issues/1399 for
