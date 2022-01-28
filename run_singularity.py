@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
+
+# Script to run Alphafold 2.1.2 using Singularity.
+# Builds the command and executes it, using a Alphafold image hosted on Dockerhub.
+#
+# Author: Diego Alvarez S. [dialvarezs@gmail.com]
+# Last modified: 2022-01-28
+
 import argparse
 import os
 import subprocess
 from datetime import datetime
 from typing import Tuple
 
-CONTAINER_IMAGE = "docker://catgumag/alphafold:2.1.1"
+CONTAINER_IMAGE = "docker://catgumag/alphafold:2.1.2"
 ROOT_MOUNT_DIRECTORY = "/mnt"
 
 
@@ -107,6 +114,8 @@ def main():
             f"--model_preset={args.model_preset}",
             f"--benchmark={args.benchmark}",
             f"--use_precomputed_msas={args.use_precomputed_msas}",
+            f"--run_relax={args.run_relax}",
+            f"--use_gpu_relax={args.enabled_gpu_relax}",
             "--logtostderr",
         ]
     )
@@ -118,6 +127,7 @@ def main():
         # would typically be too long to fit into GPU memory.
         "TF_FORCE_UNIFIED_MEMORY": "1",
         "XLA_PYTHON_CLIENT_MEM_FRACTION": "4.0",
+        "OPENMM_CPU_THREADS": args.cpus,
         "MAX_CPUS": args.cpus,
     }
 
@@ -158,7 +168,7 @@ def _generate_mount(mount_name: str, path: str, read_only=True) -> Tuple[str, st
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Singularity launch script for Alphafold v2.1.0"
+        description="Singularity launch script for Alphafold v2.1.2"
     )
 
     parser.add_argument(
@@ -218,8 +228,11 @@ def parse_arguments():
         "--use-precomputed-msas",
         default=False,
         action="store_true",
-        help="Whether to read MSAs that have been written to disk. WARNING: This will "
-        "not check if the sequence, database or configuration have changed.",
+        help="Whether to read MSAs that have been written to disk instead of running "
+        "the MSA tools. The MSA files are looked up in the output directory, so it "
+        "must stay the same between multiple runs that are to reuse the MSAs. "
+        "WARNING: This will not check if the sequence, database or configuration "
+        "have changed.",
     )
     parser.add_argument(
         "--data-dir",
@@ -239,6 +252,21 @@ def parse_arguments():
         default=True,
         action="store_true",
         help="Enable NVIDIA runtime to run with GPUs.",
+    )
+    parser.add_argument(
+        "--run-relax",
+        default=True,
+        action="store_true",
+        help="Whether to run the final relaxation step on the predicted models. Turning "
+        "relax off might result in predictions with distracting stereochemical "
+        "violations but might help in case you are having issues with the "
+        "relaxation stage.",
+    )
+    parser.add_argument(
+        "--enable-gpu-relax",
+        default=True,
+        action="store_true",
+        help="Run relax on GPU if GPU is enabled.",
     )
     parser.add_argument(
         "--gpu-devices",
