@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-# Script to run Alphafold 2.1.2 using Singularity.
+# Script to run Alphafold 2.2.0 using Singularity.
 # Builds the command and executes it, using a Alphafold image hosted on Dockerhub.
 #
 # Author: Diego Alvarez S. [dialvarezs@gmail.com]
-# Last modified: 2022-01-28
+# Last modified: 2022-03-10
 
 import argparse
 import os
@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime
 from typing import Tuple
 
-CONTAINER_IMAGE = "docker://catgumag/alphafold:2.1.2"
+CONTAINER_IMAGE = "docker://catgumag/alphafold:2.2.0"
 ROOT_MOUNT_DIRECTORY = "/mnt"
 
 
@@ -114,6 +114,7 @@ def main():
             f"--model_preset={args.model_preset}",
             f"--benchmark={args.benchmark}",
             f"--use_precomputed_msas={args.use_precomputed_msas}",
+            f"--num_multimer_predictions_per_model={args.num_multimer_predictions_per_model}",
             f"--run_relax={args.run_relax}",
             f"--use_gpu_relax={args.enabled_gpu_relax}",
             "--logtostderr",
@@ -181,18 +182,6 @@ def parse_arguments():
         "is used to name the output directories for each prediction.",
     )
     parser.add_argument(
-        "--is-prokaryote-list",
-        required=False,
-        nargs="+",
-        help="Optional for multimer system, "
-        "not used by the single chain system. "
-        "This list should contain a boolean for each fasta "
-        "specifying true where the target complex is from a "
-        "prokaryote, and false where it is not, or where the "
-        "origin is unknown. These values determine the pairing "
-        "method for the MSA.",
-    )
-    parser.add_argument(
         "--max-template-date",
         "-t",
         default=datetime.today().strftime("%Y-%m-%d"),
@@ -214,6 +203,16 @@ def parse_arguments():
         default="monomer",
         help="Choose preset model configuration - the monomer model, the monomer model "
         "with extra ensembling, monomer model with pTM head, or multimer model",
+    )
+    parser.add_argument(
+        "--num-multimer-predictions-per-model",
+        default=5,
+        type=int,
+        help="How many "
+        "predictions (each with a different random seed) will be "
+        "generated per model. E.g. if this is 2 and there are 5 "
+        "models then there will be 10 predictions per input. "
+        "Note: this FLAG only applies if model_preset=multimer",
     )
     parser.add_argument(
         "--benchmark",
