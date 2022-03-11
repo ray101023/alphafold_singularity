@@ -169,7 +169,7 @@ def _generate_mount(mount_name: str, path: str, read_only=True) -> Tuple[str, st
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Singularity launch script for Alphafold v2.1.2"
+        description="Singularity launch script for Alphafold v2.2.0"
     )
 
     parser.add_argument(
