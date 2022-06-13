@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-# Script to run Alphafold 2.2.0 using Singularity.
+# Script to run Alphafold 2.2.2 using Singularity.
 # Builds the command and executes it, using a Alphafold image hosted on Dockerhub.
 #
 # Author: Diego Alvarez S. [dialvarezs@gmail.com]
-# Last modified: 2022-03-10
+# Last modified: 2022-06-13
 
 import argparse
 import os
@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime
 from typing import Tuple
 
-CONTAINER_IMAGE = "docker://catgumag/alphafold:2.2.0"
+CONTAINER_IMAGE = "docker://catgumag/alphafold:2.2.2"
 ROOT_MOUNT_DIRECTORY = "/mnt"
 
 
@@ -169,7 +169,7 @@ def _generate_mount(mount_name: str, path: str, read_only=True) -> Tuple[str, st
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Singularity launch script for Alphafold v2.2.0"
+        description="Singularity launch script for Alphafold v2.2.2"
     )
 
     parser.add_argument(
