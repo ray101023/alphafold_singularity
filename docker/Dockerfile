@@ -21,13 +21,14 @@ ARG CUDA=11.2
 # JAXLIB no longer built for all minor CUDA versions:
 # https://github.com/google/jax/blob/main/CHANGELOG.md#jaxlib-0166-may-11-2021
 ARG CUDA_JAXLIB=11.1
+ARG DEBIAN_FRONTEND=noninteractive
 
 # Use bash to support string substitution.
 SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
       build-essential \
       cmake \
       cuda-command-line-tools-${CUDA/./-} \
@@ -72,8 +73,10 @@ RUN wget -q -P /app/alphafold/alphafold/common/ \
 # Install pip packages.
 RUN pip3 install --upgrade --no-cache-dir pip \
     && pip3 install --no-cache-dir -r /app/alphafold/requirements.txt \
-    && pip3 install --upgrade --no-cache-dir jax==0.2.14 jaxlib==0.1.69+cuda${CUDA_JAXLIB/./} -f \
-      https://storage.googleapis.com/jax-releases/jax_releases.html
+    && pip3 install --upgrade --no-cache-dir \
+      jax==0.2.14 \
+      jaxlib==0.1.69+cuda${CUDA_JAXLIB/./} \
+      -f https://storage.googleapis.com/jax-releases/jax_releases.html
 
 # Apply OpenMM patch.
 WORKDIR /opt/conda/lib/python3.8/site-packages
