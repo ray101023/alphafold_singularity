@@ -57,7 +57,7 @@ RUN wget -q -P /tmp \
 
 # Install conda packages.
 ENV PATH="/opt/conda/bin:$PATH"
-RUN conda update -qy conda \
+RUN conda install -qy conda==4.13.0 \
     && conda install -y -c conda-forge \
       openmm=7.5.1 \
       python=3.8 \
@@ -75,8 +75,8 @@ RUN pip3 install --upgrade --no-cache-dir pip \
     && pip3 install --no-cache-dir -r /app/alphafold/requirements.txt \
     && pip3 install --upgrade --no-cache-dir \
       jax==0.2.14 \
-      jaxlib==0.1.69+cuda${CUDA_JAXLIB/./} \
-      -f https://storage.googleapis.com/jax-releases/jax_releases.html
+      jaxlib==0.1.69+cuda$(cut -f1,2 -d. <<< ${CUDA_JAXLIB} | sed 's/\.//g') \
+      -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
 # Apply OpenMM patch.
 WORKDIR /opt/conda/lib/python3.8/site-packages
