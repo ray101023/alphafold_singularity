@@ -5,16 +5,16 @@
   - cuDNN 8 + cuSOLVER 11.2
   - Python 3.8
   - Multi-stage build (resulting in a lighter image)
-- Added `run_singularity.py` script equivalent to `run_docker.py`, for environments that normally don't have Docker access (e.g. HPC clusters)
+- Added `run_alphafold_singularity.py` script equivalent to `run_docker.py`, for environments that normally don't have Docker access (e.g. HPC clusters)
 - Added `MAX_CPUS` env variable to provide `ncpus` parameter for hhblits, hhsearch and jackhmmer.
 - Automatic publishing of Docker image on [DockerHub](https://hub.docker.com/r/catgumag/alphafold)
 
-**How to use `run_singularity.py`**:
+**How to use `run_alphafold_singularity.py`**:
 - Download the script and give it execution permissions (`chmod +x run_singularity.py`)
 - Ensure that you have python (>=3.6) and singularity in your environment, and you have access to the necessary databases
 - Execute the script (this is the bare minimum, use `-h` to show all the options):
   ```
-  ./run_singularity.py --fasta-paths <fasta_file_1[ fasta_file_2 ...]> --data-dir <databases_directory>
+  ./run_alphafold_singularity.py --fasta-paths <fasta_file_1[ fasta_file_2 ...]> --data-dir <databases_directory>
   ```
 
 ---

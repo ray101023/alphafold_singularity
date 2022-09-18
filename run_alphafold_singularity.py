@@ -1,63 +1,61 @@
 #!/usr/bin/env python3
 
-# Script to run Alphafold 2.2.2 using Singularity.
+# Script to run Alphafold 2.2.3 using Singularity.
 # Builds the command and executes it, using a Alphafold image hosted on Dockerhub.
 #
 # Author: Diego Alvarez S. [dialvarezs@gmail.com]
-# Last modified: 2022-06-13
+# Last modified: 2022-08-26
 
 import argparse
-import os
 import subprocess
 from datetime import datetime
+from pathlib import Path
 from typing import Tuple
 
-CONTAINER_IMAGE = "docker://catgumag/alphafold:2.2.2"
+CONTAINER_IMAGE = "docker://catgumag/alphafold:2.2.3"
 ROOT_MOUNT_DIRECTORY = "/mnt"
 
 
 def main():
     args = parse_arguments()
 
+    data_path = Path(args.data_dir)
+
     # Path to the Uniref90 database for use by JackHMMER.
-    uniref90_database_path = os.path.join(args.data_dir, "uniref90", "uniref90.fasta")
+    uniref90_database_path = data_path / "uniref90" / "uniref90.fasta"
 
     # Path to the Uniprot database for use by JackHMMER.
-    uniprot_database_path = os.path.join(args.data_dir, "uniprot", "uniprot.fasta")
+    uniprot_database_path = data_path / "uniprot" / "uniprot.fasta"
 
     # Path to the MGnify database for use by JackHMMER.
-    mgnify_database_path = os.path.join(
-        args.data_dir, "mgnify", "mgy_clusters_2018_12.fa"
-    )
+    mgnify_database_path = data_path / "mgnify" / "mgy_clusters_2018_12.fa"
 
     # Path to the BFD database for use by HHblits.
-    bfd_database_path = os.path.join(
-        args.data_dir, "bfd", "bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt"
+    bfd_database_path = (
+        data_path / "bfd" / "bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt"
     )
 
     # Path to the Small BFD database for use by JackHMMER.
-    small_bfd_database_path = os.path.join(
-        args.data_dir, "small_bfd", "bfd-first_non_consensus_sequences.fasta"
+    small_bfd_database_path = (
+        data_path / "small_bfd" / "bfd-first_non_consensus_sequences.fasta"
     )
 
     # Path to the Uniclust30 database for use by HHblits.
-    uniclust30_database_path = os.path.join(
-        args.data_dir, "uniclust30", "uniclust30_2018_08", "uniclust30_2018_08"
+    uniclust30_database_path = (
+        data_path / "uniclust30" / "uniclust30_2018_08" / "uniclust30_2018_08"
     )
 
     # Path to the PDB70 database for use by HHsearch.
-    pdb70_database_path = os.path.join(args.data_dir, "pdb70", "pdb70")
+    pdb70_database_path = data_path / "pdb70" / "pdb70"
 
     # Path to the PDB seqres database for use by hmmsearch.
-    pdb_seqres_database_path = os.path.join(
-        args.data_dir, "pdb_seqres", "pdb_seqres.txt"
-    )
+    pdb_seqres_database_path = data_path / "pdb_seqres" / "pdb_seqres.txt"
 
     # Path to a directory with template mmCIF structures, each named <pdb_id>.cif')
-    template_mmcif_dir = os.path.join(args.data_dir, "pdb_mmcif", "mmcif_files")
+    template_mmcif_dir = data_path / "pdb_mmcif" / "mmcif_files"
 
     # Path to a file mapping obsolete PDB IDs to their replacements.
-    obsolete_pdbs_path = os.path.join(args.data_dir, "pdb_mmcif", "obsolete.dat")
+    obsolete_pdbs_path = data_path / "pdb_mmcif" / "obsolete.dat"
 
     mounts = []
     command_args = []
@@ -65,7 +63,7 @@ def main():
     # Mount each fasta path as a unique target directory
     target_fasta_paths = []
     for i, fasta_path in enumerate(args.fasta_paths):
-        mount, target_path = _generate_mount(f"fasta_path_{i}", fasta_path)
+        mount, target_path = _generate_mount(f"fasta_path_{i}", Path(fasta_path))
         mounts.append(mount)
         target_fasta_paths.append(target_path)
     command_args.append(f"--fasta_paths={','.join(target_fasta_paths)}")
@@ -96,12 +94,12 @@ def main():
 
     for name, path in database_paths:
         if path:
-            mount, target_path = _generate_mount(name, path)
+            mount, target_path = _generate_mount(name, Path(path))
             mounts.append(mount)
             command_args.append(f"--{name}={target_path}")
 
     output_mount, output_target_path = _generate_mount(
-        "output", args.output_dir, read_only=False
+        "output", Path(args.output_dir), read_only=False
     )
     mounts.append(output_mount)
 
@@ -140,7 +138,7 @@ def main():
         "--bind",
         ",".join(mounts),
         *[f'--env="{k}={v}"' for k, v in env.items()],
-        CONTAINER_IMAGE,
+        args.docker_image,
         "/app/run_alphafold.sh",
         *command_args,
     ]
@@ -151,20 +149,20 @@ def main():
     p.check_returncode()
 
 
-def _generate_mount(mount_name: str, path: str, read_only=True) -> Tuple[str, str]:
+def _generate_mount(mount_name: str, path: Path, read_only=True) -> Tuple[str, str]:
     """
     Generate a mount line for a singularity container.
     :param mount_name: The name of the mount point.
     :param path: The path to mount.
     :return: A tuple of the mount line and the path to mount.
     """
-    path = os.path.abspath(path)
-    source_path = os.path.dirname(path)
-    target_path = os.path.join(ROOT_MOUNT_DIRECTORY, mount_name)
+    path = path.resolve()
+    source_path = path.parent
+    target_path = Path(ROOT_MOUNT_DIRECTORY) / mount_name
     opts = "ro" if read_only else "rw"
 
     mount_cmd = f"{source_path}:{target_path}:{opts}"
-    return mount_cmd, os.path.join(target_path, os.path.basename(path))
+    return mount_cmd, str(target_path / path.name)
 
 
 def parse_arguments():
