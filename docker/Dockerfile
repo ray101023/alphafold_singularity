@@ -18,13 +18,10 @@ FROM nvidia/cuda:${CUDA_FULL}-base-ubuntu20.04 AS build
 # previously set).
 ARG CUDA_FULL
 ARG CUDA=11.2
-# JAXLIB no longer built for all minor CUDA versions:
-# https://github.com/google/jax/blob/main/CHANGELOG.md#jaxlib-0166-may-11-2021
-ARG CUDA_JAXLIB=11.1
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Use bash to support string substitution.
-SHELL ["/bin/bash", "-c"]
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update \
     && apt-get upgrade -y \
@@ -71,11 +68,11 @@ RUN wget -q -P /app/alphafold/alphafold/common/ \
   https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 
 # Install pip packages.
-RUN pip3 install --upgrade --no-cache-dir pip \
-    && pip3 install --no-cache-dir -r /app/alphafold/requirements.txt \
+RUN pip3 install --upgrade pip --no-cache-dir \
+    && pip3 install -r /app/alphafold/requirements.txt --no-cache-dir \
     && pip3 install --upgrade --no-cache-dir \
-      jax==0.2.14 \
-      jaxlib==0.1.69+cuda$(cut -f1,2 -d. <<< ${CUDA_JAXLIB} | sed 's/\.//g') \
+      jax==0.3.17 \
+      jaxlib==0.3.15+cuda11.cudnn805 \
       -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
 # Apply OpenMM patch.
