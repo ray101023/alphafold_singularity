@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-# Script to run Alphafold 2.2.4 using Singularity.
+# Script to run Alphafold 2.3.0 using Singularity.
 # Builds the command and executes it, using a Alphafold image hosted on Dockerhub.
 #
 # Author: Diego Alvarez S. [dialvarezs@gmail.com]
-# Last modified: 2022-08-26
+# Last modified: 2022-12-13
 
 import argparse
 import subprocess
@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Tuple
 
-CONTAINER_IMAGE = "docker://catgumag/alphafold:2.2.4"
+CONTAINER_IMAGE = "docker://catgumag/alphafold:2.3.0"
 ROOT_MOUNT_DIRECTORY = "/mnt"
 
 
@@ -28,7 +28,7 @@ def main():
     uniprot_database_path = data_path / "uniprot" / "uniprot.fasta"
 
     # Path to the MGnify database for use by JackHMMER.
-    mgnify_database_path = data_path / "mgnify" / "mgy_clusters_2018_12.fa"
+    mgnify_database_path = data_path / "mgnify" / "mgy_clusters_2022_05.fa"
 
     # Path to the BFD database for use by HHblits.
     bfd_database_path = (
@@ -40,10 +40,8 @@ def main():
         data_path / "small_bfd" / "bfd-first_non_consensus_sequences.fasta"
     )
 
-    # Path to the Uniclust30 database for use by HHblits.
-    uniclust30_database_path = (
-        data_path / "uniclust30" / "uniclust30_2018_08" / "uniclust30_2018_08"
-    )
+    # Path to the Uniref30 database for use by HHblits.
+    uniref30_database_path = data_path / "uniref30" / "UniRef30_2021_03"
 
     # Path to the PDB70 database for use by HHsearch.
     pdb70_database_path = data_path / "pdb70" / "pdb70"
@@ -87,7 +85,7 @@ def main():
     else:
         database_paths.extend(
             [
-                ("uniclust30_database_path", uniclust30_database_path),
+                ("uniref30_database_path", uniref30_database_path),
                 ("bfd_database_path", bfd_database_path),
             ]
         )
