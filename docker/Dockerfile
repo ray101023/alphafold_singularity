@@ -33,6 +33,7 @@ RUN apt-get update \
       hmmer \
       kalign \
       tzdata \
+      curl \
       wget \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get autoremove -y \
@@ -48,28 +49,30 @@ RUN git clone --branch v3.3.0 https://github.com/soedinglab/hh-suite.git /tmp/hh
     && popd \
     && rm -rf /tmp/hh-suite
 
-# Install Miniconda package manager.
-RUN wget -q -P /tmp \
-  https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    && bash /tmp/Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda \
-    && rm /tmp/Miniconda3-latest-Linux-x86_64.sh
+# Install Micromamba package manager.
+RUN cd /tmp \
+  && curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba \
+  && mv bin/micromamba /usr/local/bin
+
 
 # Install conda packages.
-ENV PATH="/opt/conda/bin:$PATH"
-RUN conda install -qy conda==4.13.0 \
-    && conda install -y -c conda-forge \
+RUN eval "$(micromamba shell hook --shell=bash)" \
+    && micromamba create -p /opt/conda \
+    && micromamba activate /opt/conda \
+    && micromamba install -y -c conda-forge \
       openmm=7.5.1 \
       python=3.8 \
       cudatoolkit==${CUDA_FULL} \
       pdbfixer \
       pip \
-    && /opt/conda/bin/conda clean -aqy
+    && micromamba clean -aqy
 
 COPY . /app/alphafold
 RUN wget -q -P /app/alphafold/alphafold/common/ \
   https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 
 # Install pip packages.
+ENV PATH="/opt/conda/bin:$PATH"
 RUN pip3 install --upgrade pip --no-cache-dir \
     && pip3 install -r /app/alphafold/requirements.txt --no-cache-dir \
     && pip3 install --upgrade --no-cache-dir \
@@ -81,6 +84,7 @@ RUN pip3 install --upgrade pip --no-cache-dir \
 WORKDIR /opt/conda/lib/python3.8/site-packages
 RUN patch -p0 < /app/alphafold/docker/openmm.patch
 
+
 FROM nvidia/cuda:${CUDA_FULL}-base-ubuntu20.04
 ARG OS=ubuntu2004
 ARG CUDA=11.2
@@ -91,19 +95,13 @@ RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       software-properties-common \
-      cuda-command-line-tools-${CUDA/./-} \
       hmmer \
       kalign \
       wget \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install cuDNN and cuSOLVER
-RUN wget -q https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/cuda-${OS}.pin \
-    -O /etc/apt/preferences.d/cuda-repository-pin-600 \
-    && apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/7fa2af80.pub \
-    && add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/ /" \
-    && apt-get update \
-    && apt-get install libcudnn8 libcusolver-${CUDA/./-} \
+      cuda-command-line-tools-${CUDA/./-} \
+      libcudnn8 \
+      libcusolver-${CUDA/./-} \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app /app
@@ -128,6 +126,7 @@ python /app/alphafold/run_alphafold.py "$@"' > /app/run_alphafold.sh \
   && chmod +x /app/run_alphafold.sh
 
 ENV PATH=/opt/conda/bin:$PATH \
+    LD_LIBRARY_PATH=/opt/conda/lib:$LD_LIBRARY_PATH \
     LC_ALL=C.UTF-8 \
     ALPHAFOLD_BASE_DIR=/app/alphafold
 
