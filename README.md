@@ -1,3 +1,16 @@
+### Changes over for me
+```
+conda env create -f alphafold2_env.yml
+```
+
+then 
+```
+./run_alphafold_singularity_me.py --fasta-paths <fasta_file_1[ fasta_file_2 ...]> --data-dir <databases_directory>
+```
+
+please remember download alphafold2 database first！！
+
+
 ### Changes over [deepmind/alphafold](https://github.com/deepmind/alphafold)
 
 - Dockerfile:
